@@ -35,3 +35,92 @@
 ![ ](readme/QQ20170613-221636@2x.png)
 
 模块之间的相互依赖变成了对mq模块的依赖。
+
+那么我们来看一下创建订单功能是如何实现的,下面是创建订单业务方法的实现类
+
+```$xslt
+
+    @Autowired
+    private MQUserService mqUserService;
+
+    @Autowired
+    private MQProductService mqProductService;
+
+    @Autowired
+    private OrderDao orderDao;
+
+    @Override
+    public Map<String, Object> createOrder(String json) throws ServiceException {
+        int productId = JsonUtils.getInt(json,"productId",0);
+        int userId = JsonUtils.getInt(json,"userId",0);
+        //todo 检查商品库存
+
+        Product product =  mqProductService.checkProductCount(productId);
+
+        //todo 检查用户金额
+
+        User user =  mqUserService.checkUserMoney(userId);
+
+        //todo 组装订单数据
+        Order order = null;
+
+
+        //todo 创建订单
+        orderDao.createOrder(order);
+
+        Map<String, Object> res = new HashMap<>();
+        res.put("order",order);
+        res.put("product",product);
+        res.put("user",user);
+
+        return res;
+    }
+```
+看一下mq模块的MQUserService和MQProductService的实现：
+
+```$xslt
+@Service
+public class MQUserServiceImpl implements MQUserService {
+
+    @Autowired
+    private UserService userService;
+
+    @Override
+    public User checkUserMoney(int userId) throws ServiceException {
+        return userService.checkUserMoney(userId);
+    }
+}
+
+
+```
+
+```$xslt
+@Service
+public class MQProductServiceImpl implements MQProductService {
+
+
+    @Autowired
+    private ProductService productService;
+
+    @Override
+    public Product checkProductCount(int productId) throws ServiceException {
+        return productService.checkProductCount(productId);
+    }
+}
+
+```
+
+mq模块下的业务仅仅起到了调用的功能，没有具体的业务逻辑。
+
+#### 这样设计MQ模块有什么意义
+
+通过mq的概念我们轻松的降低模块之前的耦合，而且在项目的初期由于项目还未达不到需要划分模块的时候，此时完全可以在一个项目下，这样做到了将来可拆分的准备。其次就是对与软件开发维护上，a模块需要协调b模块的功能的时候，a模块只需要在b模块MQ的Service下添加一个自己需要业务接口就行了，然后通知b模块实现该接口即可。
+
+
+### 从单机系统演变成为集群式系统
+
+只要我们在设计指出就考虑到了如何拆分项目，那么当项目达到单机的瓶颈的时候，做拆分就简单了，这个时候只需要让mq模块的注入方式调用其他模块改成RPC调用即可。然后再添加对分布式事务的支持这样一个分布式集群系统就搭建好了。关于RPC远程调用可以使用阿里的[dubbo](http://dubbo.io/)框架，关于分布式事务可以采用我封装的[transaction](https://github.com/1991wangliang/transaction)框架.
+
+分布式系统的架构图：
+
+
