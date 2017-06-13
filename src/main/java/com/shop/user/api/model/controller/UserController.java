@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
  * Created by lorne on 2017/6/12.
  */
 @Controller
-@RequestMapping("/mobile/demo")
+@RequestMapping("/mobile/user")
 public class UserController extends RestController {
 
 
